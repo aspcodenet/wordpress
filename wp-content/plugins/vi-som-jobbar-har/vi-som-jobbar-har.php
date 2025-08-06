@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name:       Vi som jobbar här
+ * Plugin Name:       Vi som jobbar här (CPT)
  * Plugin URI:        https://example.com/
- * Description:       En enkel plugin som hanterar personalinformation.
+ * Description:       En plugin som skapar en Custom Post Type för personal.
  * Version:           1.0.0
  * Author:            Stefan
  * Author URI:        https://example.com/
@@ -13,182 +13,85 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly.
 }
 
-// Globalt variabel för tabellnamnet
-global $visomjobbarhar_db_version;
-$visomjobbarhar_db_version = '1.0';
-
-/**
- * Funktion som skapar databastabellen vid aktivering.
- */
-function visomjobbarhar_install() {
-    global $wpdb;
-    global $visomjobbarhar_db_version;
-    
-    $table_name = $wpdb->prefix . 'personal';
-    $charset_collate = $wpdb->get_charset_collate();
-
-    if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-        
-        $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            namn tinytext NOT NULL,
-            titel tinytext NOT NULL,
-            epost varchar(100) NOT NULL,
-            PRIMARY KEY  (id)
-        ) $charset_collate;";
-
-        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-        dbDelta( $sql );
-        
-        add_option( 'visomjobbarhar_db_version', $visomjobbarhar_db_version );
-    }
-}
-
-/**
- * Lägg till lite exempeldata vid aktivering
- */
-function visomjobbarhar_install_data() {
-    global $wpdb;
-    
-    $table_name = $wpdb->prefix . 'personal';
-    
-    // Kontrollera om tabellen är tom innan vi lägger till data
-    $count = $wpdb->get_var( "SELECT COUNT(*) FROM $table_name" );
-    if ($count == 0) {
-        $wpdb->insert(
-            $table_name,
-            array(
-                'namn'  => 'Sara Johansson',
-                'titel' => 'VD',
-                'epost' => 'sara@exempel.se',
-            )
-        );
-        $wpdb->insert(
-            $table_name,
-            array(
-                'namn'  => 'Erik Svensson',
-                'titel' => 'Utvecklare',
-                'epost' => 'erik@exempel.se',
-            )
-        );
-    }
-}
-
-/**
- * Funktion som tar bort databastabellen vid avaktivering
- */
-function visomjobbarhar_uninstall() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'personal';
-    $sql = "DROP TABLE IF EXISTS $table_name";
-    $wpdb->query($sql);
-    delete_option('visomjobbarhar_db_version');
-}
-
-/**
- * Hookar för pluginets livscykel
- */
-register_activation_hook( __FILE__, 'visomjobbarhar_install' );
-register_activation_hook( __FILE__, 'visomjobbarhar_install_data' );
-register_deactivation_hook( __FILE__, 'visomjobbarhar_uninstall' );
-
-
-// --- Back-end (Adminpanel) ---
-/**
- * Skapa en sida i WordPress adminpanel
- */
-function visomjobbarhar_menu() {
-    add_menu_page(
-        'Vår Personal',
-        'Vår Personal',
-        'manage_options',
-        'visomjobbarhar-personal',
-        'visomjobbarhar_admin_page_content',
-        'dashicons-businesswoman'
+// Registrera Custom Post Type "Personal"
+function vsh_register_personal_cpt() {
+    $labels = array(
+        'name'               => _x( 'Personal', 'Post Type General Name', 'vsh-cpt' ),
+        'singular_name'      => _x( 'Person', 'Post Type Singular Name', 'vsh-cpt' ),
+        'menu_name'          => __( 'Personal', 'vsh-cpt' ),
+        'name_admin_bar'     => __( 'Personal', 'vsh-cpt' ),
+        'add_new'            => __( 'Lägg till ny', 'vsh-cpt' ),
+        'add_new_item'       => __( 'Lägg till ny person', 'vsh-cpt' ),
+        'new_item'           => __( 'Ny person', 'vsh-cpt' ),
+        'edit_item'          => __( 'Redigera person', 'vsh-cpt' ),
+        'view_item'          => __( 'Visa person', 'vsh-cpt' ),
+        'all_items'          => __( 'All personal', 'vsh-cpt' ),
+        'search_items'       => __( 'Sök personal', 'vsh-cpt' ),
+        'parent_item_colon'  => __( 'Överordnad person:', 'vsh-cpt' ),
+        'not_found'          => __( 'Ingen personal hittades.', 'vsh-cpt' ),
+        'not_found_in_trash' => __( 'Ingen personal hittades i papperskorgen.', 'vsh-cpt' ),
     );
+    $args = array(
+        'labels'             => $labels,
+        'public'             => true,
+        'publicly_queryable' => true,
+        'show_ui'            => true,
+        'show_in_menu'       => true,
+        'query_var'          => true,
+        'rewrite'            => array( 'slug' => 'personal' ),
+        'capability_type'    => 'post',
+        'has_archive'        => true,
+        'hierarchical'       => false,
+        'menu_position'      => 5,
+        'menu_icon'          => 'dashicons-groups',
+        'supports'           => array( 'title', 'editor', 'thumbnail' ),
+        'show_in_rest'       => true,
+    );
+    register_post_type( 'personal', $args );
 }
-add_action( 'admin_menu', 'visomjobbarhar_menu' );
+add_action( 'init', 'vsh_register_personal_cpt' );
 
-/**
- * Funktion som renderar innehållet på adminsidan
- */
-function visomjobbarhar_admin_page_content() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'personal';
-    $results = $wpdb->get_results( "SELECT * FROM $table_name", ARRAY_A );
-    ?>
-    <div class="wrap">
-        <h1>Vår Personal</h1>
-        <p>Här kan du se en lista över personalen.</p>
-        <table class="wp-list-table widefat fixed striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Namn</th>
-                    <th>Titel</th>
-                    <th>E-post</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($results as $row) : ?>
-                    <tr>
-                        <td><?php echo esc_html($row['id']); ?></td>
-                        <td><?php echo esc_html($row['namn']); ?></td>
-                        <td><?php echo esc_html($row['titel']); ?></td>
-                        <td><?php echo esc_html($row['epost']); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-    <?php
+// Tvinga WordPress att uppdatera sina permalänkar vid aktivering
+function vsh_rewrite_flush() {
+    vsh_register_personal_cpt();
+    flush_rewrite_rules();
 }
+register_activation_hook( __FILE__, 'vsh_rewrite_flush' );
 
-
-// --- Front-end (Publik sida) ---
-/**
- * Skapa en shortcode för att visa personalen på en publik sida.
- */
-function visomjobbarhar_shortcode() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'personal';
-    $results = $wpdb->get_results( "SELECT * FROM $table_name", ARRAY_A );
+// Shortcode för att visa all personal på en publik sida
+function vsh_personal_lista_shortcode() {
+    $args = array(
+        'post_type'      => 'personal',
+        'posts_per_page' => -1, // Visa alla personalposter
+    );
+    $query = new WP_Query( $args );
     
     ob_start();
-    ?>
-    <style>
-        .personal-lista {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .personal-kort {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            width: 300px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .personal-kort h3 {
-            margin-top: 0;
-            margin-bottom: 5px;
-            font-size: 1.2em;
-        }
-        .personal-kort p {
-            margin: 0;
-            color: #555;
-        }
-    </style>
-    <div class="personal-lista">
-        <?php foreach ($results as $row) : ?>
-            <div class="personal-kort">
-                <h3><?php echo esc_html($row['namn']); ?></h3>
-                <p><strong>Titel:</strong> <?php echo esc_html($row['titel']); ?></p>
-                <p><strong>E-post:</strong> <a href="mailto:<?php echo esc_attr($row['epost']); ?>"><?php echo esc_html($row['epost']); ?></a></p>
-            </div>
-        <?php endforeach; ?>
-    </div>
-    <?php
+    
+    if ( $query->have_posts() ) : ?>
+        <div class="personal-lista">
+            <?php while ( $query->have_posts() ) : $query->the_post(); ?>
+                <article class="personal-kort">
+                    <?php if ( has_post_thumbnail() ) : ?>
+                        <div class="personal-bild">
+                             <?php the_post_thumbnail( 'thumbnail' ); ?>
+                        </div>
+                    <?php endif; ?>
+                    <div class="personal-info">
+                        <h3><?php the_title(); ?></h3>
+                        <div class="entry-content">
+                            <?php the_content(); ?>
+                        </div>
+                    </div>
+                </article>
+            <?php endwhile; ?>
+        </div>
+    <?php else : ?>
+        <p>Ingen personal hittades.</p>
+    <?php endif;
+
+    wp_reset_postdata();
+    
     return ob_get_clean();
 }
-add_shortcode( 'personal_lista', 'visomjobbarhar_shortcode' );
+add_shortcode( 'personal_lista', 'vsh_personal_lista_shortcode' );
