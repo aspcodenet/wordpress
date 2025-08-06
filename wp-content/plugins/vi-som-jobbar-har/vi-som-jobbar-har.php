@@ -4,9 +4,9 @@
  * Plugin URI:        https://example.com/
  * Description:       En plugin som skapar en Custom Post Type för personal.
  * Version:           1.0.0
- * Author:            Stefan
+ * Author:            Din Kursledare
  * Author URI:        https://example.com/
- * Text Domain:       vi-som-jobbar-har
+ * Text Domain:       vi-som-jobbar-har-cpt
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -51,9 +51,40 @@ function vsh_register_personal_cpt() {
 }
 add_action( 'init', 'vsh_register_personal_cpt' );
 
+// --- Ny kod: Registrera en hierarkisk taxonomy för "Avdelning" ---
+function vsh_register_avdelning_taxonomy() {
+    $labels = array(
+        'name'              => _x( 'Avdelningar', 'taxonomy general name', 'vsh-cpt' ),
+        'singular_name'     => _x( 'Avdelning', 'taxonomy singular name', 'vsh-cpt' ),
+        'search_items'      => __( 'Sök avdelningar', 'vsh-cpt' ),
+        'all_items'         => __( 'Alla avdelningar', 'vsh-cpt' ),
+        'parent_item'       => __( 'Överordnad avdelning', 'vsh-cpt' ),
+        'parent_item_colon' => __( 'Överordnad avdelning:', 'vsh-cpt' ),
+        'edit_item'         => __( 'Redigera avdelning', 'vsh-cpt' ),
+        'update_item'       => __( 'Uppdatera avdelning', 'vsh-cpt' ),
+        'add_new_item'      => __( 'Lägg till ny avdelning', 'vsh-cpt' ),
+        'new_item_name'     => __( 'Ny avdelningsnamn', 'vsh-cpt' ),
+        'menu_name'         => __( 'Avdelningar', 'vsh-cpt' ),
+    );
+
+    $args = array(
+        'hierarchical'      => true, // Gör taxonomin hierarkisk (som kategorier)
+        'labels'            => $labels,
+        'show_ui'           => true,
+        'show_admin_column' => true,
+        'query_var'         => true,
+        'rewrite'           => array( 'slug' => 'avdelning' ),
+        'show_in_rest'      => true,
+    );
+
+    register_taxonomy( 'avdelning', array( 'personal' ), $args );
+}
+add_action( 'init', 'vsh_register_avdelning_taxonomy' );
+
 // Tvinga WordPress att uppdatera sina permalänkar vid aktivering
 function vsh_rewrite_flush() {
     vsh_register_personal_cpt();
+    vsh_register_avdelning_taxonomy(); // Aktivera den nya taxonomin
     flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'vsh_rewrite_flush' );
